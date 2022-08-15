@@ -1,81 +1,109 @@
-#!/bin/bash
-# Copyright (c) 2021 by profzei
-# Licensed under the terms of the GPL v3
+# !/bin/bash
+# Copyright (c) 2022 by Priyansu Prasad
+
+CreateFolder()
+{
+    mkdir -p "${1}"
+}
+
+#Check Internet connection
+case "$(curl -s --max-time 2 -I http://www.google.com | sed 's/^[^ ]*  *\([0-9]\).*/\1/; 1q')" in
+    [23])
+        echo "Web Connection is success...."
+    ;;
+    5)
+        echo "The web proxy won't let us through"
+        exit
+    ;;
+    *)
+        echo "The network is down or very slow"
+        exit
+    ;;
+esac
+
+sudo apt-get install jq -y
+sudo apt-get install wget -y
+sudo apt-get install sbsigntool -y
+
+OpenCoreGitDetails="OpenCoreGitDetails.json"
+
+rm -rf $OpenCoreGitDetails
+echo "${OpenCoreGitDetails} is Deleted ..... "
+sleep 2s
+
+echo "Get latest Open Core version and link"
+respons=$(curl -s https://api.github.com/repos/acidanthera/OpenCorePkg/releases/latest | jq '{verison:.name,assets:.assets[] | select(.browser_download_url | contains("RELEASE"))}')
+
+# Write Github api response into OpenCoreGitDetails.json files
+echo $respons>>$OpenCoreGitDetails
+
+# Extract data from Json Files
+Version=`cat ${OpenCoreGitDetails} | jq -r '.verison'`
+Link=`cat ${OpenCoreGitDetails} | jq -r '.assets | .browser_download_url'`
+FileName=`cat ${OpenCoreGitDetails} | jq -r '.assets | .name'`
+# echo "LINK : ${Link}"
+echo "Verison: ${Version}"
+echo "File Name: ${FileName}"
+echo "Download Link: ${Link}"
+
+TempDownloadFolder=".././TempDownload"
+
+rm -rf "${TempDownloadFolder}/"
+echo "${TempDownloadFolder} is Deleted ..... "
+#sleep 5s
 
 
-VERSION="0.8.3"
+CreateFolder "$TempDownloadFolder"
+# # Download OpenCore
+OCDownloadPath="${TempDownloadFolder}/${FileName}"
+wget "${Link}" --show-progress --progress=bar -q -O "${OCDownloadPath}"
+unzip -q "${OCDownloadPath}" "X64/*" -d "${TempDownloadFolder}"
+#Move EFI Folder From x64
+mv "${TempDownloadFolder}/X64/EFI/" "${TempDownloadFolder}"
+rm -rf "${TempDownloadFolder}/X64"
 
-LINK="https://github.com/acidanthera/OpenCorePkg/releases/download/${VERSION}/OpenCore-${VERSION}-RELEASE.zip"
-
-echo "Version : ${VERSION}"
-echo "LINK : ${LINK}"
-
-# if ! command -v wget &> /dev/null
-# then
-#     echo "Please install wget"
-#     exit
-# fi
-
-# if ! command -v sbsign &> /dev/null
-# then
-#     echo "Please install sbsigntools"
-#     exit
-# fi
-
-DownloadFolder = "DownloadOC"
-
-echo "Create folder to process on files"
-mkdir -p "Signed/${DownloadPath}"
-
-echo "Setup Folder for Opecore file"
+#Download HfsPlus.efi File and Move to Temp Folder for Processing
+wget -q  https://github.com/acidanthera/OcBinaryData/raw/master/Drivers/HfsPlus.efi -O "${TempDownloadFolder}/HfsPlus.efi"
+mv "${TempDownloadFolder}/HfsPlus.efi" "${TempDownloadFolder}/EFI/OC/Drivers"
 
 
-
-
-mkdir -p Signed/EFI/OC/ACPI
-mkdir -p Signed/EFI/OC/Driver
-mkdir -p Signed/EFI/OC/Resources
-mkdir -p Signed/EFI/OC/Tools
-mkdir -p Signed/EFI/OC/Kexts
-
-mkdir Downloaded
-mkdir Signed
-mkdir Signed/Drivers
-mkdir Signed/Tools
-
-# Download and unzip OpenCore
-
-OCZipFile = "Opecore${VERSION}.zip"
-
-OCDownloadPath  = "${DownloadFolder}/${OCZipFile}"
-
-wget $LINK -O "${OCDownloadPath}"
-unzip "OpenCore-${VERSION}-RELEASE.zip" "X64/*" -d "Downloaded"
-rm "OpenCore-${VERSION}-RELEASE.zip"
-
-# Download HfsPlus
-wget https://github.com/acidanthera/OcBinaryData/raw/master/Drivers/HfsPlus.efi -O Downloaded/HfsPlus.efi
-
-if [ -f "./ISK.key" ]; then
+# Start EFI Signing Process
+echo "EFI Signing In-Progress ........"
+if [ -f "./Cert/ISK.key" ]; then
     echo "ISK.key was decrypted successfully"
+    else
+    echo "Not able to find ISK.key file....."
+    exit
 fi
 
-if [ -f "./ISK.pem" ]; then
+if [ -f "./Cert/ISK.pem" ]; then
     echo "ISK.pem was decrypted successfully"
+    else
+    echo "Not able to find ISK.pem file....."
+    exit
 fi
 
-# Sign drivers
-sbsign --key ISK.key --cert ISK.pem --output Signed/BOOTx64.efi Downloaded/X64/EFI/BOOT/BOOTx64.efi
-sbsign --key ISK.key --cert ISK.pem --output Signed/OpenCore.efi Downloaded/X64/EFI/OC/OpenCore.efi
-sbsign --key ISK.key --cert ISK.pem --output Signed/Drivers/OpenRuntime.efi Downloaded/X64/EFI/OC/Drivers/OpenRuntime.efi
-sbsign --key ISK.key --cert ISK.pem --output Signed/Drivers/OpenCanopy.efi Downloaded/X64/EFI/OC/Drivers/OpenCanopy.efi
-sbsign --key ISK.key --cert ISK.pem --output Signed/Drivers/AudioDxe.efi Downloaded/X64/EFI/OC/Drivers/AudioDxe.efi
-sbsign --key ISK.key --cert ISK.pem --output Signed/Drivers/OpenLinuxBoot.efi Downloaded/X64/EFI/OC/Drivers/OpenLinuxBoot.efi
-sbsign --key ISK.key --cert ISK.pem --output Signed/Drivers/Ext4Dxe.efi Downloaded/X64/EFI/OC/Drivers/Ext4Dxe.efi
-sbsign --key ISK.key --cert ISK.pem --output Signed/Drivers/HfsPlus.efi Downloaded/HfsPlus.efi
-sbsign --key ISK.key --cert ISK.pem --output Signed/Tools/OpenShell.efi Downloaded/X64/EFI/OC/Tools/OpenShell.efi
+#Copy EFI
+cp -R "${TempDownloadFolder}/EFI/" "${TempDownloadFolder}/EFI-${Verison}-Signed/"
 
-# Clean 
-rm -rf Downloaded
-echo "Cleaned..."
+declare -a EFIFolders=("BOOT" "OC" "OC/Drivers" "OC/Tools")
 
+for folder in "${EFIFolders[@]}"
+do
+    echo -e "\nCurrent Processing Folder ======= ${folder} ============"  
+    #Remove file First then move the the signed folder 
+    rm -rf "${TempDownloadFolder}/EFI-${Verison}-Signed/${folder}"/*.efi
+    #sleep 5s
+
+    for entry in "${TempDownloadFolder}/EFI/${folder}"/*.efi
+    do
+        efiFileName="$(basename  ${entry})"
+        echo -e "\nCurrent Processing Filename  ============ '$efiFileName' ============ "
+        echo "${folder} => ${entry}" 
+        sbsign --key ./Cert/ISK.key --cert ./Cert/ISK.pem --output "${TempDownloadFolder}/EFI-${Verison}-Signed/${folder}/${efiFileName}" "${entry}"
+    done
+done
+
+echo "EFI Signing completed successfully....."
+
+exit
