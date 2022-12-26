@@ -1,4 +1,4 @@
 # SignOpenCoreEFI
 
-Run with below command in linux OS
-bash run.sh
+Run with below command in linux OS<br>
+`bash run.sh`
