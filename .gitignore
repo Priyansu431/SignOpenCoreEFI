@@ -1,2 +1,13 @@
 tempFolder/
 TempDownload/
+*/**/EFI
+*/**/EFI*
+EFI*
+*/**/*.json
+*/**/*.zip
+generatedCertificate/*.auth
+generatedCertificate/*.esl
+generatedCertificate/*.key
+generatedCertificate/*.pem
+generatedCertificate/*.txt
+files/certificate/*.*

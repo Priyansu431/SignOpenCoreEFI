@@ -1,0 +1,12 @@
+./files/downloads/EFI_Signed/
+./files/downloads/EFI_Signed/BOOT
+./files/downloads/EFI_Signed/OC
+./files/downloads/EFI_Signed/OC/ACPI
+./files/downloads/EFI_Signed/OC/Drivers
+./files/downloads/EFI_Signed/OC/Kexts
+./files/downloads/EFI_Signed/OC/Resources
+./files/downloads/EFI_Signed/OC/Resources/Audio
+./files/downloads/EFI_Signed/OC/Resources/Font
+./files/downloads/EFI_Signed/OC/Resources/Image
+./files/downloads/EFI_Signed/OC/Resources/Label
+./files/downloads/EFI_Signed/OC/Tools
